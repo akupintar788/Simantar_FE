@@ -145,4 +145,57 @@ body {
     box-shadow: 35px -35px 0 10px var(--white);
     pointer-events: none;
   } 
+
+  .navigation ul li.active {
+    width: 285px;
+    background-color: var(--white); /* Warna latar belakang untuk menu aktif */
+  }
+  
+  .navigation ul li.active .icon {
+    color: var(--green); /* Warna ikon untuk menu aktif */
+  }
+  
+  .navigation ul li.active .title {
+    color: var(--green); /* Warna teks untuk menu aktif */
+  }
+  
+  /* Animasi saat mengarahkan mouse ke menu */
+  .navigation ul li:hover .icon,
+  .navigation ul li.active .icon {
+    color: var(--green); /* Ubah warna ikon saat menu dihover atau aktif */
+  }
+  
+  .navigation ul li:hover .title,
+  .navigation ul li.active .title {
+    color: var(--green); /* Ubah warna teks saat menu dihover atau aktif */
+  }
+
+  /* --------- curve outside ---------- */
+  .navigation ul li:hover a::before,
+  .navigation ul li.active a::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: -50px;
+    width: 50px;
+    height: 50px;
+    background-color: transparent;
+    border-radius: 50%;
+    box-shadow: 35px 35px 0 10px var(--white);
+    pointer-events: none;
+  } 
+  .navigation ul li:hover a::after,
+  .navigation ul li.active a::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: -50px;
+    width: 50px;
+    height: 50px;
+    background-color: transparent;
+    border-radius: 50%;
+    box-shadow: 35px -35px 0 10px var(--white);
+    pointer-events: none;
+  }
+  
   

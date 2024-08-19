@@ -12,7 +12,7 @@ label {
     margin-bottom: 5px;
 }
 
-/* input[type="text"],
+input[type="text"],
 input[type="email"],
 input[type="password"] {
     width: 100%;
@@ -20,17 +20,13 @@ input[type="password"] {
     margin-bottom: 10px;
     border-radius: 5px;
     border: 1px solid #ccc;
-} */
+}
 
 button {
-    background-color: #4caf50;
-    color: white;
+    background-color: #75b877;
+    color: rgb(255, 255, 255);
     padding: 10px 20px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-}
-
-button:hover {
-    background-color: #45a049;
 }

@@ -6,6 +6,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faEdit, faTrashAlt, faSearch, faPlus, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import avatar from "../assets/images.png";
 import Slidebar from '../component/Slidebar';
+import Topbar from '../component/topbar';
+import { Pagination } from 'react-bootstrap';
 
 const Datajurusan = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -22,11 +24,59 @@ const Datajurusan = () => {
     const [kodejurusanError, setKodeJurusanError] = useState(false);
     const [namajurusanError, setNamaJurusanError] = useState(false);
     const [duplicateKodeJurusanError, setDuplicateKodeJurusanError] = useState(false);
-    const [jurusan, setJurusan] = useState([
-        // { id: 1, kodejurusan: 'KJ001',  namajurusan: 'Teknik Informatika', deskripsi: 'Deskripsi jurusan Teknik Informatika' },
-        // { id: 2, kodejurusan: 'KJ002',  namajurusan: 'Sistem Informasi', deskripsi: 'Deskripsi jurusan Sistem Informasi' },
-        // { id: 3, kodejurusan: 'KJ003',  namajurusan: 'Teknik Elektro', deskripsi: 'Deskripsi jurusan Teknik Elektro' },
-    ]);
+    const [jurusan, setJurusan] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [dataPerPage] = useState(10); 
+
+    const handleSearch = (searchTerm) => {
+        setSearchTerm(searchTerm);
+        setCurrentPage(1);
+    };
+
+    useEffect(() => {
+        console.log("key:", searchTerm);
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        try {
+            const response = await axios.get('http://localhost:8000/api/jurusans');
+            setJurusan(response.data);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            if (error.response && error.response.status === 401) {
+                // Handle Unauthorized error
+                console.log("Unauthorized access detected. Logging out...");
+                localStorage.removeItem('token');
+                localStorage.removeItem('role');
+                localStorage.removeItem('userid');
+                localStorage.removeItem("isLoggedIn");
+              }
+        }
+    };
+
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+    };
+
+    const filterData = jurusan.filter((jurusan) => {
+        return (
+            jurusan.nama_jurusan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            jurusan.deskripsi_jurusan.toLowerCase().includes(searchTerm.toLowerCase()) 
+        );
+    });
+
+    // Hitung startIndex dan endIndex berdasarkan currentPage dan perPage
+    const startIndex = (currentPage - 1) * dataPerPage + 1;
+    const endIndex = Math.min(startIndex + dataPerPage - 1, filterData.length);
+
+    // Potong data sesuai dengan indeks data awal dan akhir
+    const currentData = filterData.slice(startIndex - 1, endIndex);
+
+    // Hitung jumlah total halaman
+    const totalPages = Math.ceil(filterData.length / dataPerPage);;
+
 
     const validateForm = () => {
         let isValid = true;
@@ -47,21 +97,16 @@ const Datajurusan = () => {
             setDuplicateKodeJurusanError(false);
         }
 
+        if (!jurusanData.nama_jurusan) {
+            setNamaJurusanError(true);
+            isValid = false;
+        } else {
+            setNamaJurusanError(false);
+        }
+
         return isValid;
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            const response = await axios.get('http://localhost:8000/api/jurusans');
-            setJurusan(response.data);
-        } catch (error) {
-            console.error('Error fetching data:', error);
-        }
-    };
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
@@ -183,20 +228,7 @@ const Datajurusan = () => {
                 <Slidebar />
             </div>
             <div className={`main ${isSidebarOpen ? 'shifted' : ''}`}>
-                <div className="topbar">
-                    <div className="toggle" onClick={toggleSidebar} >
-                        <FontAwesomeIcon icon={faBars} /> 
-                    </div>
-                    <div className="search">
-                        <label>
-                            <input type="text" placeholder="Search here" />
-                            <FontAwesomeIcon className="icon" icon={faSearch} /> 
-                        </label>
-                    </div>
-                    <div className="user">
-                        <img src={avatar} alt="" />
-                    </div>
-                </div>
+                <Topbar toggleSidebar={toggleSidebar} onSearch={handleSearch} />
                 <div className='datapengguna' >
                     <div className='body-flex'>
                         <div className='flex mx-6 d-flex justify-content-center'>
@@ -318,19 +350,15 @@ const Datajurusan = () => {
                                     <thead style={{ backgroundColor: '#436850', color: 'white' }}>
                                         <tr>
                                             <th>No</th>
-                                            {/* <th>ID Jurusan</th>
-                                            <th>Kode Jurusan</th> */}
                                             <th>Nama Jurusan</th>
                                             <th>Deskripsi</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {jurusan.map((jurusan, index) => (
+                                        {currentData.map((jurusan, index) => (
                                             <tr key={jurusan.id}>
-                                                <td>{index + 1}</td>
-                                                {/* <td>{jurusan.id}</td>
-                                                <td>{jurusan.kode_jurusan}</td> */}
+                                                <td>{startIndex + index }</td>
                                                 <td>{jurusan.nama_jurusan}</td>
                                                 <td>{jurusan.deskripsi_jurusan}</td>
                                                 <td>
@@ -346,6 +374,22 @@ const Datajurusan = () => {
                                         ))}
                                     </tbody>
                                 </Table>
+                                {/* Tampilkan informasi jumlah data yang ditampilkan */}
+        <div className='d-flex justify-content-between align-items-center mt-2'>
+            <p style={{ fontSize: '14px', color: 'grey' }}>Showing {startIndex} to {endIndex} of {filterData.length} results</p>
+        
+                                {/* Pagination */}
+            {/* Pagination */}
+            <Pagination>
+                <Pagination.Prev onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
+                {Array.from({ length: totalPages }, (_, index) => (
+                    <Pagination.Item key={index + 1} active={index + 1 === currentPage} onClick={() => handlePageChange(index + 1)}>
+                        {index + 1}
+                    </Pagination.Item>
+                ))}
+                <Pagination.Next onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} />
+            </Pagination>
+                            </div>
                             </div>
                         </div>
                     </div>

@@ -1,16 +1,31 @@
 import React, { useState, useEffect} from 'react';
 // import "./Dashboard";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faTools, faBox, faExclamationTriangle, faUsers, faChartBar, faThLarge, faReceipt, faClipboardCheck, faClipboardQuestion, faCheckCircle, faClipboardList, faSearch} from '@fortawesome/free-solid-svg-icons'; // Import ikon yang diperlukan
+import { faBars, faBell, faTools, faBox, faExclamationTriangle, faUsers, faChartBar, faThLarge, faReceipt, faClipboardCheck, faClipboardQuestion, faCheckCircle, faClipboardList, faSearch} from '@fortawesome/free-solid-svg-icons'; // Import ikon yang diperlukan
 import avatar from "../assets/images.png";
+
+import { Link } from 'react-router-dom';
 import "./Dashboard.css";
 import Slidebar from '../component/Slidebar';
+import Topbar from '../component/topbar';
 import axios from 'axios';
 
 function Dasboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState({});
   const [userRole, setUserRole] = useState("");
+  const [totals, setTotals] = useState({
+    users: 0,
+    jurusans: 0,
+    ruangans: 0,
+    barangs: 0,
+    barangbaik: 0,
+    barangrusak: 0,
+    peminjaman: 0,
+    belumkembali: 0,
+    dikembalikan: 0
+  });
+
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -18,6 +33,9 @@ function Dasboard() {
 
   useEffect(() => {
     const token = localStorage.getItem('token'); // Ambil token dari local storage
+    const role = localStorage.getItem('role');
+    console.log("rolest:", role)
+    setUserRole(role);
     if(!token){
       window.location.href = "/";
     } else {
@@ -29,356 +47,175 @@ function Dasboard() {
     try {
       const token = localStorage.getItem('token');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await axios.post('http://localhost:8000/api/auth/me');
-      setUser(response.data);
-      setUserRole(response.data.role);
+
+      const [responseMe, responseUsers, responsePrograms, responseRooms, responseItems, responsePeminjaman, responsePeminjamans] = await Promise.all([
+        axios.post('http://localhost:8000/api/auth/me'),
+        axios.get('http://localhost:8000/api/users'),
+        axios.get('http://localhost:8000/api/jurusans'),
+        axios.get('http://localhost:8000/api/ruangans'),
+        axios.get('http://localhost:8000/api/barangs'),
+        axios.get('http://localhost:8000/api/peminjamans'),
+        axios.get('http://localhost:8000/api/peminjamans/get')
+      ]);
+
+      setUser(responseMe.data);
+      // setUserRole(responseMe.data.role);
+
+      // Hitung total barang yang baik dan rusak
+      let barangbaik = 0;
+      let barangrusak = 0;
+      responseItems.data.forEach(item => {
+        if (item.keadaan_barang === 'baik') {
+          barangbaik++;
+        } else {
+          barangrusak++;
+        }
+      });
+
+      // Hitung total peminjaman yang belum dikembalikan
+      let belumkembali = 0;
+      let dikembalikan = 0;
+      responsePeminjamans.data.forEach(peminjaman => {
+        if (peminjaman.status_peminjaman === 'Dipinjam') {
+          belumkembali++;
+        } else if (peminjaman.status_peminjaman === 'Dikembalikan') {
+          dikembalikan++;
+        }
+      });
+
+      setTotals({
+        users: responseUsers.data.length,
+        jurusans: responsePrograms.data.length,
+        ruangans: responseRooms.data.length,
+        barangs: responseItems.data.length,
+        barangbaik: barangbaik,
+        barangrusak: barangrusak,
+        peminjaman: responsePeminjaman.data.length,
+        belumkembali: belumkembali,
+        dikembalikan: dikembalikan
+      });
     } catch (error) {
       console.error("Error fetching user data:", error);
+      if (error.response && error.response.status === 401) {
+        // Handle Unauthorized error
+        console.log("Unauthorized access detected. Logging out...");
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('userid');
+        localStorage.removeItem("isLoggedIn");
+      }
     }
-  }
+  };
+  const [count, setCount] = useState(3);
 
+   
   return (
     <div>
       <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <Slidebar />
       </div>
       <div className={`main ${isSidebarOpen ? 'shifted' : ''}`}>
-          <div class="topbar">
-            <div class="toggle" onClick={toggleSidebar} >
-            <FontAwesomeIcon icon={faBars} /> 
-            
-            </div>
-            
-            <div class="search">
-              <label>
-                <input type="text" placeholder="Search here" />
-                <FontAwesomeIcon className="icon" icon={faSearch} /> 
-              </label>
-            </div>
-
-            <div class="user">
-              <img src={avatar} alt="" />
-            </div>
-          </div>
+      <Topbar toggleSidebar={toggleSidebar} />
           <div className="welcome">
           <h3>Hallo {userRole}</h3> {/* Menampilkan peran pengguna */}
           <p>Selamat Datang Kembali di SiMantar</p>
           </div>
           <div class="cardBox">
-          <div class="box">
+          {userRole === "admin" && (
+            <>
+          <Link to="/datapengguna" className="box" style={{ textDecoration: 'none' }}>
+              <div>
+                <div className="numbers">{totals.users}</div>
+                <div className="cardName">Total Pengguna</div>
+              </div>
+              <div className="iconBx">
+                <FontAwesomeIcon icon={faUsers} /> 
+              </div>
+            </Link>
+            <Link to="/datajurusan" className="box" style={{ textDecoration: 'none' }}> {/* Tambahkan Link untuk mengarahkan ke halaman jurusan */}
             <div>
-                <div class="numbers">32</div>
-                <div class="cardName">Total Pengguna</div>
-              </div>
-
-              <div class="iconBx">
-              <FontAwesomeIcon icon={faUsers} /> 
-              </div>
+              <div className="numbers">{totals.jurusans}</div>
+              <div className="cardName">Total Program Keahlian</div>
             </div>
-
-            <div class="box">
-              <div>
-                <div class="numbers">5</div>
-                <div class="cardName">Total Program Keahlian</div>
-              </div>
-
-              <div class="iconBx">
-              <FontAwesomeIcon icon={faChartBar} /> 
-              </div>
+            <div className="iconBx">
+              <FontAwesomeIcon icon={faChartBar} />
             </div>
-
-            <div class="box">
+          </Link> 
+          <Link to="/dataruangan" className="box" style={{ textDecoration: 'none' }}>
               <div>
-                <div class="numbers">15</div>
-                <div class="cardName">Total Ruangan</div>
+                <div className="numbers">{totals.ruangans}</div>
+                <div className="cardName">Total Ruangan</div>
               </div>
-
-              <div class="iconBx">
-              <FontAwesomeIcon icon={faThLarge} /> 
+              <div className="iconBx">
+                <FontAwesomeIcon icon={faThLarge} /> 
               </div>
-            </div>
-
-            <div class="box">
+            </Link>
+            </>
+          )}
+            <Link to="/databarang" className="box" style={{ textDecoration: 'none' }}>
               <div>
-                <div class="numbers">1,504</div>
-                <div class="cardName">Total Barang</div>
+                <div className="numbers">{totals.barangs}</div>
+                <div className="cardName">Total Barang</div>
               </div>
-
-              <div class="iconBx">
-              <FontAwesomeIcon icon={faBox} /> 
+              <div className="iconBx">
+                <FontAwesomeIcon icon={faBox} /> 
               </div>
-            </div>
+            </Link>
 
-            <div class="box">
+            <Link to="/databarang" className="box" style={{ textDecoration: 'none' }}>
               <div>
-                <div class="numbers">80</div>
+                <div class="numbers">{totals.barangbaik}</div>
                 <div class="cardName">Barang Kondisi baik</div>
               </div>
 
               <div class="iconBx">
               <FontAwesomeIcon icon={faCheckCircle} /> 
               </div>
-            </div>
+            </Link>
 
-            <div class="box">
+            <Link to="/databarang" className="box" style={{ textDecoration: 'none' }}>
               <div>
-                <div class="numbers">284</div>
+                <div class="numbers">{totals.barangrusak}</div>
                 <div class="cardName">Barang Kondisi Rusak</div>
               </div>
 
               <div class="iconBx">
               <FontAwesomeIcon icon={faExclamationTriangle} /> 
               </div>
-            </div>
+            </Link>
 
-            <div class="box">
+            <Link to="/datapeminjaman" className="box" style={{ textDecoration: 'none' }}>
               <div>
-                <div class="numbers">742</div>
-                <div class="cardName">Transaksi Peminjaman</div>
+                <div className="numbers">{totals.peminjaman}</div>
+                <div className="cardName">Transaksi Peminjaman</div>
               </div>
-
-              <div class="iconBx">
-              <FontAwesomeIcon icon={faClipboardList} /> 
+              <div className="iconBx">
+                <FontAwesomeIcon icon={faClipboardList} /> 
               </div>
-            </div>
+            </Link>
 
-            <div class="box">
+            <Link to="/datapeminjaman" className="box" style={{ textDecoration: 'none' }}>
               <div>
-                <div class="numbers">42</div>
+                <div class="numbers">{totals.belumkembali}</div>
                 <div class="cardName">Peminjaman Belum Dikembalikan</div>
               </div>
 
               <div class="iconBx">
               <FontAwesomeIcon icon={faClipboardQuestion} /> 
               </div>
-            </div>
+            </Link>
             
-            <div class="box">
+            <Link to="/datapeminjaman" className="box" style={{ textDecoration: 'none' }}>
               <div>
-                <div class="numbers">842</div>
+                <div class="numbers">{totals.dikembalikan}</div>
                 <div class="cardName">Peminjaman Dikembalikan</div>
               </div>
 
               <div class="iconBx">
               <FontAwesomeIcon icon={faClipboardCheck} /> 
               </div>
-            </div>
+            </Link>
           </div>
-          {/* <div class="details">
-            <div class="recentOrders">
-              <div class="cardHeader">
-                <h2>Recent Orders</h2>
-                <a href="#" class="btn">
-                  View All
-                </a>
-              </div>
-
-              <table>
-                <thead>
-                  <tr>
-                    <td>Kode Barang </td>
-                    <td>Nama Barang</td>
-                    <td>Merek Barang</td>
-                    <td>Kategori</td>
-                    <td>Tanggal Pembelian</td>
-                    <td>Harga</td>
-                    <td>
-                      Letak barang
-                    </td>
-                    <td>Jumlah</td>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  <tr>
-                    <td>deni bagus</td>
-                    <td>1</td>
-                    <td>12-30-23</td>
-                    <td> 88393</td>
-                    <td>rungan 1</td>
-                    <td>
-                      <span class="status delivered">Delivered</span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Dell Laptop</td>
-                    <td>$110</td>
-                    <td>Due</td>
-                    <td>
-                      <span class="status pending">Pending</span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Apple Watch</td>
-                    <td>$1200</td>
-                    <td>Paid</td>
-                    <td>
-                      <span class="status return">Return</span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Addidas Shoes</td>
-                    <td>$620</td>
-                    <td>Due</td>
-                    <td>
-                      <span class="status inProgress">In Progress</span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Star Refrigerator</td>
-                    <td>$1200</td>
-                    <td>Paid</td>
-                    <td>
-                      <span class="status delivered">Delivered</span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Dell Laptop</td>
-                    <td>$110</td>
-                    <td>Due</td>
-                    <td>
-                      <span class="status pending">Pending</span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Apple Watch</td>
-                    <td>$1200</td>
-                    <td>Paid</td>
-                    <td>
-                      <span class="status return">Return</span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Addidas Shoes</td>
-                    <td>$620</td>
-                    <td>Due</td>
-                    <td>
-                      <span class="status inProgress">In Progress</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="recentCustomers">
-              <div class="cardHeader">
-                <h2>Aktivitas peminjaman</h2>
-              </div>
-
-              <table>
-                <tr>
-                  <td width="60px">
-                    <div class="imgBx">
-                      <img src="assets/imgs/customer02.jpg" alt="" />
-                    </div>
-                  </td>
-                  <td>
-                    <h4>
-                      David <br /> <span>kunci</span>
-                    </h4>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td width="60px">
-                    <div class="imgBx">
-                      <img src="assets/imgs/customer01.jpg" alt="" />
-                    </div>
-                  </td>
-                  <td>
-                    <h4>
-                      Amit <br /> <span>kunci</span>
-                    </h4>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td width="60px">
-                    <div class="imgBx">
-                      <img src="assets/imgs/customer02.jpg" alt="" />
-                    </div>
-                  </td>
-                  <td>
-                    <h4>
-                      David <br /> <span>kunci</span>
-                    </h4>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td width="60px">
-                    <div class="imgBx">
-                      <img src="assets/imgs/customer01.jpg" alt="" />
-                    </div>
-                  </td>
-                  <td>
-                    <h4>
-                      Amit <br /> <span>obeng</span>
-                    </h4>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td width="60px">
-                    <div class="imgBx">
-                      <img src="assets/imgs/customer02.jpg" alt="" />
-                    </div>
-                  </td>
-                  <td>
-                    <h4>
-                      David <br /> <span>kunci inggris</span>
-                    </h4>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td width="60px">
-                    <div class="imgBx">
-                      <img src="assets/imgs/customer01.jpg" alt="" />
-                    </div>
-                  </td>
-                  <td>
-                    <h4>
-                      Amit <br /> <span>obeng</span>
-                    </h4>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td width="60px">
-                    <div class="imgBx">
-                      {" "}
-                      <img src="assets/imgs/customer01.jpg" alt="" />
-                    </div>
-                  </td>
-                  <td>
-                    <h4>
-                      David <br /> <span>kunci</span>
-                    </h4>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td width="60px">
-                    <div class="imgBx">
-                      <img src="assets/imgs/customer02.jpg" alt="" />
-                    </div>
-                  </td>
-                  <td>
-                    <h4>
-                      Amit <br /> <span>India</span>
-                    </h4>
-                  </td>
-                </tr>
-              </table>
-            </div>
-          </div> */}
         </div>
         
       

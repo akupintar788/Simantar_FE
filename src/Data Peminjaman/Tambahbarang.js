@@ -6,40 +6,71 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faEdit, faTrashAlt, faSearch, faPlus } from '@fortawesome/free-solid-svg-icons';
 import avatar from "../assets/images.png";
 import Slidebar from '../component/Slidebar';
+import Topbar from '../component/topbar';
 
 function InputBarang() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [ruanganOptions, setRuanganOptions] = useState([]);
   const [errorMessages, setErrorMessages] = useState({});
   const [existingBarangCodes, setExistingBarangCodes] = useState([]);
+  const [userId, setUserId] = useState(null);
+  const [jurusanId, setJurusanId] = useState(null);
   
   const [formData, setFormData] = useState({
     ruangan_id:'',
-    user_id:'',
+    user_id: userId,
+    jurusan_id: jurusanId,
     kode_barang: '',
     nama_barang: '',
     spesifikasi: '',
     jenis_barang: '',
+    kategori_barang: '',
     pengadaan: '',
     keadaan_barang: '',
     kuantitas: '',
     keterangan_barang: ''
   });
 
-  console.log("data ini:", formData)
+   console.log("data ini:", formData)
   
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
 };
 
+const fetchData = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    const response = await axios.post('http://localhost:8000/api/auth/me');
+    setUserId(response.data.id);
+    console.log("User ID diperbarui:", response.data.id);
+  } catch (error) {
+      console.error("Error fetching user data:", error);
+      if (error.response && error.response.status === 401) {
+        // Handle Unauthorized error
+        console.log("Unauthorized access detected. Logging out...");
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('userid');
+        localStorage.removeItem("isLoggedIn");
+      }
+    }
+  }
+
 useEffect(() => {
-  // Ambil user_id dari session atau token autentikasi
-  const user_id = localStorage.getItem('id');
-  console.log("User ID:", user_id);
-  setFormData({ ...formData, user_id });
+  fetchData();
+  console.log("User ID:", userId);
+  console.log("Jurusan ID:", jurusanId);
   fetchRuanganOptions();
   fetchExistingBarangCodes();
-}, []);
+  if (userId !== null && jurusanId !== null) {
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      user_id: userId,
+      jurusan_id: jurusanId,
+    }));
+  }
+}, [userId, jurusanId]);
 
 const fetchExistingBarangCodes = async () => {
   try {
@@ -56,9 +87,11 @@ const fetchExistingBarangCodes = async () => {
     try {
       const response = await axios.get('http://localhost:8000/api/ruangans');
       const ruanganData = response.data;
+      console.log("data ruangans: ", ruanganData)
       const options = ruanganData.map(ruangan => ({
         value: ruangan.id,
-        label: ruangan.nama_ruangan
+        label: ruangan.nama_ruangan,
+        jurusan_id: ruangan.jurusan_id
       }));
       setRuanganOptions(options);
     } catch (error) {
@@ -80,6 +113,11 @@ const fetchExistingBarangCodes = async () => {
       errors.nama_barang = "Nama Barang harus diisi!*";
     }
 
+    // Validasi kategori barang harus dipilih
+    if (!formData.kategori_barang.trim()) {
+      errors.kategori_barang = "Kategori Barang harus dipilih!*";
+    }
+
     // Validasi jenis barang harus dipilih
     if (!formData.jenis_barang.trim()) {
       errors.jenis_barang = "Jenis Barang harus dipilih!*";
@@ -90,9 +128,18 @@ const fetchExistingBarangCodes = async () => {
       errors.keadaan_barang = "Keadaan Barang harus dipilih!*";
     }
 
-    if (!formData.kuantitas.trim()) {
-      errors.kuantitas = "Kuantitas Barang harus diisi!*";
-    }
+    // Validasi kuantitas
+    if (formData.kuantitas === null || formData.kuantitas === undefined || formData.kuantitas === "") {
+      errors.kuantitas = "Kuantitas Barang harus diisi!";
+  } else {
+      // Pastikan kuantitas adalah angka
+      const kuantitas = parseFloat(formData.kuantitas);
+      if (isNaN(kuantitas)) {
+          errors.kuantitas = "Kuantitas Barang harus berupa angka!";
+      } else if (kuantitas <= 0) {
+          errors.kuantitas = "Kuantitas Barang harus lebih besar dari 0!";
+      }
+  }
 
     if (!formData.pengadaan.trim()) {
       errors.pengadaan = "Tanggal Pengadaan Barang harus diisi!*";
@@ -109,11 +156,33 @@ const fetchExistingBarangCodes = async () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    console.log("Nilai yang dipilih:", value);
+    console.log("Opsi ruangan:", ruanganOptions);
     setFormData({
       ...formData,
-      [name]: value
+      user_id: userId,
+      [name]: value,
+      // jurusan_id: jurusanId 
     });
+    // setJurusanId(jurusanId);
   };
+
+  const handleInputLetakChange = (e) => {
+    const { name, value } = e.target;
+    console.log("Nilai yang dipilih:", value);
+    const jurusanId = e.target.options[e.target.selectedIndex].dataset.jurusanid || null;
+    console.log("Opsi ruangan:", ruanganOptions);
+  console.log("jurusan select: ", jurusanId);
+    setFormData({
+      ...formData,
+      // user_id: userId,
+      [name]: value,
+      jurusan_id: jurusanId 
+    });
+    setJurusanId(jurusanId);
+  };
+
+  
 
 
   const submitData = async () => {
@@ -123,7 +192,8 @@ const fetchExistingBarangCodes = async () => {
         const dataToSend = {
           ...formData,
           ruangan_id: parseInt(formData.ruangan_id),
-          user_id: parseInt(formData.user_id)
+          user_id: parseInt(formData.user_id),
+          jurusan_id: parseInt(formData.jurusan_id)
         };
         console.log("Data yang akan dikirim:", dataToSend);
         await axios.post('http://localhost:8000/api/barangs', dataToSend);
@@ -145,20 +215,7 @@ const fetchExistingBarangCodes = async () => {
                 <Slidebar />
       </div>
             <div className={`main ${isSidebarOpen ? 'shifted' : ''}`}>
-                <div class="topbar">
-                    <div class="toggle" onClick={toggleSidebar} >
-                        <FontAwesomeIcon icon={faBars} /> 
-                    </div>
-                    <div class="search">
-                        <label>
-                            <input type="text" placeholder="Search here" />
-                            <FontAwesomeIcon className="icon" icon={faSearch} /> 
-                        </label>
-                    </div>
-                    <div class="user">
-                        <img src={avatar} alt="" />
-                    </div>
-                </div>
+            <Topbar toggleSidebar={toggleSidebar} />
           <div className="co-input">
             <h2>Input Data Barang</h2>
             <br />
@@ -195,15 +252,20 @@ const fetchExistingBarangCodes = async () => {
             </div>
 
             <div className="input-group">
+              <label htmlFor="kategoribarang">Kategori Barang</label>
+              <select id="kategoribarang" name="kategori_barang" value={formData.kategori_barang} onChange={handleInputChange}>
+                <option value="">Pilih Kategori Barang</option>
+                <option value="barang inventaris">Barang Inventaris</option>
+                <option value="barang habis pakai">Barang Habis Pakai</option>
+              </select>
+              {errorMessages.kategori_barang && <p style={{ color: 'red' }} className="error-message">{errorMessages.kategori_barang}</p>}
+            </div>
+
+            <div className="input-group">
               <label htmlFor="pengadaan">Pengadaan</label>
               <input type="date" id="pengadaan" name="pengadaan" value={formData.pengadaan} onChange={handleInputChange} placeholder="" />
               {errorMessages.pengadaan && <p style={{ color: 'red' }} className="error-message">{errorMessages.pengadaan}</p>}
             </div>
-
-            {/* <div className="input-group">
-              <label htmlfor="hargabarang">Harga Barang</label>
-              <input type="number" id="hargabarang" placeholder="masukkan harga barang" />
-            </div> */}
 
             <div className="input-group">
               <label htmlFor="keadaanbarang">Keadaan Barang</label>
@@ -219,10 +281,10 @@ const fetchExistingBarangCodes = async () => {
 
             <div className="input-group">
               <label htmlFor="ruanganId">Letak Barang</label>
-              <select id="ruanganId" name="ruangan_id" value={formData.ruangan_id} onChange={handleInputChange}>
+              <select id="ruanganId" name="ruangan_id" value={formData.ruangan_id} onChange={handleInputLetakChange}>
               <option value="">Pilih Letak Barang</option>
               {ruanganOptions.map(option => (
-                <option key={option.value} value={option.value}>
+                <option key={option.value} value={option.value} data-jurusanid={option.jurusan_id}>
                   {option.label}
                 </option>
               ))}
@@ -244,7 +306,6 @@ const fetchExistingBarangCodes = async () => {
             <button className="butn" onClick={submitData}>
               Submit
             </button>
-            {/* <Button className="btn" variant="primary" onClick={submitData}>Submit</Button> */}
           </div>
           </div>
     </div>

@@ -6,6 +6,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faEdit, faTrashAlt, faSearch, faPlus, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import avatar from "../assets/images.png";
 import Slidebar from '../component/Slidebar';
+import Topbar from '../component/topbar';
+import { Pagination } from 'react-bootstrap';
 
 const Dataruangan = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -16,9 +18,11 @@ const Dataruangan = () => {
         id: '',
         kode_ruangan: '',
         nama_ruangan: '',
-        deskripsi_ruangan: ''
+        deskripsi_ruangan: '',
+        jurusanId: ''
     });
-
+    
+    
     const [koderuanganError, setKodeRuanganError] = useState(false);
     const [namaruanganError, setNamaRuanganError] = useState(false);
     const [jurusanIdError, setJurusanIdError] = useState(false);
@@ -43,17 +47,41 @@ const Dataruangan = () => {
             setDuplicateKodeRuanganError(false);
         }
 
+        if (!ruanganData.nama_ruangan) {
+            setNamaRuanganError(true);
+            isValid = false;
+        } else {
+            setNamaRuanganError(false);
+        }
+
+        if (!ruanganData.jurusanId) {
+            setJurusanIdError(true);
+            isValid = false;
+        } else {
+            setJurusanIdError(false);
+        }
+
         return isValid;
     };
 
     const [ruangan, setRuangan] = useState([]);
 
     const [jurusans, setJurusan] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [dataPerPage] = useState(10); // Ubah sesuai kebutuhan Anda
+
+    const handleSearch = (searchTerm) => {
+        setSearchTerm(searchTerm);
+        setCurrentPage(1);
+    };
 
     useEffect(() => {
+        console.log("keywd:" , searchTerm);
         fetchDataJurusan();
         fetchDataRuangan();
     }, []);
+
 
 
     const fetchDataJurusan = async () => {
@@ -63,6 +91,14 @@ const Dataruangan = () => {
             console.log(response.data);
         } catch (error) {
             console.error('Error fetching data:', error);
+            if (error.response && error.response.status === 401) {
+                // Handle Unauthorized error
+                console.log("Unauthorized access detected. Logging out...");
+                localStorage.removeItem('token');
+                localStorage.removeItem('role');
+                localStorage.removeItem('userid');
+                localStorage.removeItem("isLoggedIn");
+              }
         }
     };
 
@@ -71,10 +107,44 @@ const Dataruangan = () => {
             const response = await axios.get('http://localhost:8000/api/ruangans');
             setRuangan(response.data);
             console.log(response.data);
+            
         } catch (error) {
             console.error('Error fetching data:', error);
+            if (error.response && error.response.status === 401) {
+                // Handle Unauthorized error
+                console.log("Unauthorized access detected. Logging out...");
+                localStorage.removeItem('token');
+                localStorage.removeItem('role');
+                localStorage.removeItem('userid');
+                localStorage.removeItem("isLoggedIn");
+              }
         }
     };
+
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+    };
+    
+    const filteredData = ruangan.filter((ruangan) => {
+        const jurusan = jurusans.find(j => j.id === ruangan.jurusan_id)?.nama_jurusan.toLowerCase();
+        return (
+            ruangan.nama_ruangan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            ruangan.deskripsi_ruangan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            jurusan.includes(searchTerm.toLowerCase()) // tambahkan kondisi untuk pencarian berdasarkan jurusan
+        );
+    });
+    
+
+    // Hitung startIndex dan endIndex berdasarkan currentPage dan perPage
+    const startIndex = (currentPage - 1) * dataPerPage + 1;
+    const endIndex = Math.min(startIndex + dataPerPage - 1, filteredData.length);
+
+    // Potong data sesuai dengan indeks data awal dan akhir
+    const currentData = filteredData.slice(startIndex - 1, endIndex);
+
+    // Hitung jumlah total halaman
+    const totalPages = Math.ceil(filteredData.length / dataPerPage);
+
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
@@ -156,6 +226,14 @@ const Dataruangan = () => {
     const UpdateDataRuangan = async (e) => {
         e.preventDefault();
         console.log('Data yang akan dikirim:', ruanganData);
+
+        let isValid = true;
+        if (!ruanganData.nama_ruangan) {
+            setNamaRuanganError(true);
+            isValid = false;
+        } else {
+            setNamaRuanganError(false);
+        }
          // Validasi input jurusan dipilih
          if (!ruanganData.jurusanId) {
             setJurusanIdError(true);
@@ -168,12 +246,7 @@ const Dataruangan = () => {
             jurusan_id: parseInt(ruanganData.jurusanId) // atau Number(ruanganData.jurusanId)
         };
         // Validasi input nama ruangan
-        if (!ruanganData.nama_ruangan) {
-            setNamaRuanganError(true);
-            return;
-        } else {
-            setNamaRuanganError(false);
-        }
+        
         try {
             const response = await axios.put(`http://localhost:8000/api/ruangans/update/${ruanganData.id}`, updatedRuanganData, {
                 headers: {
@@ -207,20 +280,8 @@ const Dataruangan = () => {
                 <Slidebar />
             </div>
             <div className={`main ${isSidebarOpen ? 'shifted' : ''}`}>
-                <div className="topbar">
-                    <div className="toggle" onClick={toggleSidebar} >
-                        <FontAwesomeIcon icon={faBars} /> 
-                    </div>
-                    <div className="search">
-                        <label>
-                            <input type="text" placeholder="Search here" />
-                            <FontAwesomeIcon className="icon" icon={faSearch} /> 
-                        </label>
-                    </div>
-                    <div className="user">
-                        <img src={avatar} alt="" />
-                    </div>
-                </div>
+            <Topbar toggleSidebar={toggleSidebar} onSearch={handleSearch} />
+
                 <div className='datapengguna' >
                     <div className='body-flex'>
                         <div className='flex mx-6 d-flex justify-content-center'>
@@ -367,7 +428,6 @@ const Dataruangan = () => {
                                     <thead style={{ backgroundColor: '#436850', color: 'white' }}>
                                         <tr>
                                             <th>No</th>
-                                            {/* <th>Kode Ruangan</th> */}
                                             <th>Nama Ruangan</th>
                                             <th>Deskripsi</th>
                                             <th>Jurusan</th>
@@ -375,10 +435,9 @@ const Dataruangan = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {ruangan.map((ruangan, index) => (
+                                        {currentData.map((ruangan, index) => (
                                             <tr key={ruangan.id}>
-                                                <td>{index + 1}</td>
-                                                {/* <td>{ruangan.kode_ruangan}</td> */}
+                                                <td>{startIndex + index}</td>
                                                 <td>{ruangan.nama_ruangan}</td>
                                                 <td>{ruangan.deskripsi_ruangan}</td>
                                                 <td>{jurusans.find(j => j.id === ruangan.jurusan_id)?.nama_jurusan}</td>
@@ -396,6 +455,22 @@ const Dataruangan = () => {
                                         ))}
                                     </tbody>
                                 </Table>
+                                 {/* Tampilkan informasi jumlah data yang ditampilkan */}
+        <div className='d-flex justify-content-between align-items-center mt-2'>
+            <p style={{ fontSize: '14px', color: 'grey' }}>Showing {startIndex} to {endIndex} of {filteredData.length} results</p>
+        
+                                {/* Pagination */}
+            {/* Pagination */}
+            <Pagination>
+                <Pagination.Prev onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
+                {Array.from({ length: totalPages }, (_, index) => (
+                    <Pagination.Item key={index + 1} active={index + 1 === currentPage} onClick={() => handlePageChange(index + 1)}>
+                        {index + 1}
+                    </Pagination.Item>
+                ))}
+                <Pagination.Next onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} />
+            </Pagination>
+                            </div>
                             </div>
                         </div>
                     </div>

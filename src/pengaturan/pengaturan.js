@@ -1,15 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faSearch } from "@fortawesome/free-solid-svg-icons";
 import avatar from "../assets/images.png";
 import Slidebar from '../component/Slidebar';
+import Topbar from '../component/topbar';
 import "./pengaturan.css";
+import axios from 'axios';
 
 function Pengaturan() {
   const [akun, setAkun] = useState({
-    username: "pengguna123",
-    email: "pengguna123@example.com",
-    password: "password123",
+    id: '',
+    username: "",
+    nama_user: "",
+    no_hp: "",
+    password: "",
     newPassword: "",
     confirmPassword: "",
   });
@@ -37,28 +41,44 @@ function Pengaturan() {
       newPassword: "",
       confirmPassword: "",
     });
-    alert("Perubahan berhasil disimpan");
+    try {
+      const response = axios.put(`http://localhost:8000/api/users/setting/${akun.id}`, akun);
+      alert("Perubahan berhasil disimpan"); // Tampilkan pesan sukses dari backend
+    } catch (error) {
+      console.error("Error updating account settings:", error);
+      alert("Terjadi kesalahan saat memperbarui pengaturan akun.");
+    }
   };
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      const response = await axios.post('http://localhost:8000/api/auth/me');
+      setAkun(response.data);
+      console.log("data akun:", response.data)
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      if (error.response && error.response.status === 401) {
+        // Handle Unauthorized error
+        console.log("Unauthorized access detected. Logging out...");
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('userid');
+        localStorage.removeItem("isLoggedIn");
+      }
+    }
+  }
 
   return (
     <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
       <Slidebar />
       <div className={`main ${isSidebarOpen ? 'shifted' : ''}`}>
-        <div className="topbar">
-          <div className="toggle" onClick={toggleSidebar}>
-            <FontAwesomeIcon icon={faBars} />
-          </div>
-          <div className="search">
-            <label>
-              <input type="text" placeholder="Search here" />
-              <FontAwesomeIcon className="icon" icon={faSearch} />
-            </label>
-          </div>
-          <div className="user">
-            <img src={avatar} alt="" />
-          </div>
-        </div>
-        <div>
+      <Topbar toggleSidebar={toggleSidebar} />
+        <div className="container">
           <h2>Pengaturan Akun</h2>
           <form onSubmit={handleSubmit}>
             <div>
@@ -72,34 +92,35 @@ function Pengaturan() {
               />
             </div>
             <div>
-              <label>Email:</label>
+              <label>Nama User</label>
               <input
-                type="email"
-                name="email"
-                value={akun.email}
+                type="text"
+                name="nama_user"
+                value={akun.nama_user}
                 onChange={handleChange}
               />
             </div>
             <div>
-              <label>Password Lama:</label>
+              <label>No Hp</label>
               <input
-                type="password"
-                name="password"
-                value={akun.password}
+                type="number"
+                name="no_hp"
+                value={akun.no_hp}
                 onChange={handleChange}
               />
             </div>
             <div>
-              <label>Password Baru:</label>
+              <label>Password Baru</label>
               <input
                 type="password"
                 name="newPassword"
+                placeholder="Masukan password baru jika ingin mengganti password"
                 value={akun.newPassword}
                 onChange={handleChange}
               />
             </div>
             <div>
-              <label>Konfirmasi Password Baru:</label>
+              <label>Konfirmasi Password Baru</label>
               <input
                 type="password"
                 name="confirmPassword"
@@ -107,7 +128,7 @@ function Pengaturan() {
                 onChange={handleChange}
               />
             </div>
-            <button type="submit">Simpan Perubahan</button>
+            <button className="bpengaturan" type="submit">Simpan Perubahan</button>
           </form>
         </div>
       </div>

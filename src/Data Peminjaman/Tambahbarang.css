@@ -34,6 +34,25 @@
   box-sizing: border-box;
 }
 
+/* Atur lebar maksimum untuk opsi */
+.input-group select option {
+  max-width: calc(100% - 16px);
+}
+
+/* Untuk layar dengan lebar maksimum 600px */
+@media screen and (max-width: 600px) {
+  .input-group select {
+    width: 100%; /* Atur lebar elemen select agar mengisi lebar maksimum */
+    padding: 12px; /* Sesuaikan padding sesuai kebutuhan */
+    font-size: 14px; /* Sesuaikan ukuran font sesuai kebutuhan */
+  }
+
+  /* Atur ulang lebar opsi agar mengikuti lebar elemen select */
+  .input-group select option {
+    width: 100%;
+  }
+}
+
 .input-group input:focus,
 .input-group select:focus {
   outline: none;

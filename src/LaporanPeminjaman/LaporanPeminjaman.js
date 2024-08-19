@@ -1,22 +1,35 @@
-import './laporan.css';
+import '../laporan/laporan.css';
 import React, { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
-import html2pdf from 'html2pdf.js';
 import logo from "../assets/smk ijo.jpg";
 
 
-const Laporan = React.forwardRef(({ data, columnData, jurusanId, jenislap, detaillap }, ref) => {
+const LaporanPeminjaman = React.forwardRef(({ data, columnData, jurusanId, jenislap, detaillap }, ref) => {
   const isJurusanId6 = jurusanId === 6 || jurusanId === null;
 
   console.log('Data yang diterima di Laporan:', data);
   console.log('Data colom:', columnData);
+  console.log('detaillap: ', detaillap);
+  console.log('jenislap: ', jenislap)
+  console.log('idjr: ', jurusanId);
 
   const ttdkp= localStorage.getItem('ttd_ketua_program');
   const ttdsp= localStorage.getItem('ttd_sarpras');
   const [userData, setUserData] = useState([]);
   const [userDataS, setUserDataS] = useState([]);
   const [userDataKS, setUserDataKS] = useState([]);
+  const [jurusanOptions, setJurusanOpsi] = useState([]);
+  const [jurusanName, setJurusanName] = useState('');
+  const [condition, setCondition] = useState(true);
+  console.log('JURUSAN: ', jurusanOptions)
+console.log("namaju: ", jurusanName);
   useEffect(() => {
+
+    if(jenislap === 'status peminjaman'){
+        setCondition(true);
+    }else {
+        setCondition(false);
+    }
     const fetchData = async () => {
         try {
             const response = await axios.get('http://localhost:8000/api/users');
@@ -34,13 +47,13 @@ const Laporan = React.forwardRef(({ data, columnData, jurusanId, jenislap, detai
         } catch (error) {
             console.error('Error fetching data:', error);
             if (error.response && error.response.status === 401) {
-              // Handle Unauthorized error
-              console.log("Unauthorized access detected. Logging out...");
-              localStorage.removeItem('token');
-              localStorage.removeItem('role');
-              localStorage.removeItem('userid');
-              localStorage.removeItem("isLoggedIn");
-            }
+                // Handle Unauthorized error
+                console.log("Unauthorized access detected. Logging out...");
+                localStorage.removeItem('token');
+                localStorage.removeItem('role');
+                localStorage.removeItem('userid');
+                localStorage.removeItem("isLoggedIn");
+              }
         }
     };
     fetchData();
@@ -88,17 +101,38 @@ const Laporan = React.forwardRef(({ data, columnData, jurusanId, jenislap, detai
     } catch (error) {
         console.error('Error fetching data:', error);
         if (error.response && error.response.status === 401) {
-          // Handle Unauthorized error
-          console.log("Unauthorized access detected. Logging out...");
-          localStorage.removeItem('token');
-          localStorage.removeItem('role');
-          localStorage.removeItem('userid');
-          localStorage.removeItem("isLoggedIn");
-        }
+            // Handle Unauthorized error
+            console.log("Unauthorized access detected. Logging out...");
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            localStorage.removeItem('userid');
+            localStorage.removeItem("isLoggedIn");
+          }
     }
 };
 fetchDataKS();
+
+const fetchDataJurusan = async () => {
+    try {
+        const response = await axios.get('http://localhost:8000/api/jurusans');
+        const jurusanData = response.data;
+        setJurusanOpsi(jurusanData);
+        const detailLapId = parseInt(detaillap);
+        const selectedJurusan = jurusanData.find(j => j.id === detailLapId);
+        if (selectedJurusan) {
+          setJurusanName(selectedJurusan.nama_jurusan);
+        } else {
+          
+        }
+    } catch (error) {
+        console.error('Error fetching data:', error);
+    }
+};
+fetchDataJurusan();
+
 }, []);
+
+
 
 
   const getCurrentSchoolYear = () => {
@@ -247,6 +281,10 @@ fetchDataKS();
     }
   };
 
+  const getNestedValue = (obj, path) => {
+    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+  };
+
   return (
     
     <div ref={ref} className="surat-container">
@@ -277,12 +315,12 @@ fetchDataKS();
       <br></br>
       <div className="header-row">
         <div className="header-col col-5">
-          LAPORAN BARANG INVENTARIS {jenislap ? `PER ${jenislap.toUpperCase()}` : ''}
+          LAPORAN PEMINJAMAN BARANG {jenislap ? `PER ${jenislap.toUpperCase()}` : ''}
         </div>
       </div>
       <div className="header-row">
         <div className="header-col col-6">
-          {detaillap.toUpperCase()}
+        {condition ?  `STATUS ${detaillap.toUpperCase()}` : jurusanName.toUpperCase()}
         </div>
       </div>
       <div className="header-row">
@@ -307,11 +345,12 @@ fetchDataKS();
             </tr>
           </thead>
           <tbody>
-            {data.map((barang, index) => (
-              <tr key={index}>
-                <td style={{ fontSize: '10px' }}>{index + 1}</td>
-                {columnData.map((column, index) => (
-                  <td key={index}style={{ fontSize: '10px' }}>{barang[column.field]}</td>
+            {data.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                <td style={{ fontSize: '10px' }}>{rowIndex + 1}</td>
+                {columnData.map((column, colIndex) => (
+                  <td key={colIndex}style={{ fontSize: '10px' }}>{getNestedValue(row, column.field)}</td>
+                  
                 ))}
               </tr>
             ))}
@@ -319,7 +358,6 @@ fetchDataKS();
         </table>
       </div>
       <br></br>
-      
       <div className="header-roow">
         <div >
           Mejayan, {formattedDate}
@@ -331,4 +369,4 @@ fetchDataKS();
   );
 });
 
-export default Laporan;
+export default LaporanPeminjaman;

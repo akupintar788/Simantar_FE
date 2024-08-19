@@ -5,7 +5,9 @@ import { Link} from "react-router-dom";
 
 function Login() {
   const [username, setUsername] = useState("");
+  const [role, setuserRole] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleLoginChange = (e) => {
     const { name, value } = e.target;
@@ -17,9 +19,6 @@ function Login() {
   };
 
   useEffect(() => {
-  if(localStorage.getItem('token')){
-    window.location.href = "/dashboard";
-  }
   fetchData();
 }, []);
 
@@ -37,16 +36,14 @@ function Login() {
       );
 
       console.log(response.data.access_token); // Tampilkan respons dari backend (opsional)
-
+      localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('token',response.data.access_token);
       
       await fetchData(); // Panggil fungsi fetchData untuk mengambil data pengguna (termasuk role) 
-      alert("Login berhasil");
-      // Redirect atau navigasi ke halaman lain jika diperlukan
-      window.location.href = "/dashboard";
+      
     } catch (error) {
       console.error("Error during login:", error);
-      alert("Login gagal. Periksa kembali username dan password Anda");
+      setError("Login gagal. Periksa kembali username dan password Anda! *");
     }
 };
 
@@ -56,9 +53,24 @@ function Login() {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       const response = await axios.post('http://localhost:8000/api/auth/me');
       localStorage.setItem('role', response.data.role); // Simpan role ke dalam localStorage
-      localStorage.setItem('id', response.data.id);
+      localStorage.setItem('userid', response.data.id);
+      setuserRole(response.data.role)
+      if (response.data.role === 'siswa' || response.data.role === 'guru') {
+        window.location.href = "/dashboarduser";
+      } else {
+        window.location.href = "/dashboard";
+      }
     } catch (error) {
       console.error("Error fetching user data:", error);
+      if (error.response && error.response.status === 401) {
+        // Handle Unauthorized error
+        console.log("Unauthorized access detected. Logging out...");
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('userid');
+        localStorage.removeItem("isLoggedIn");
+        
+      }
     }
   };
 
@@ -97,13 +109,8 @@ function Login() {
                 onChange={handleLoginChange}
               />
             </div>
-            <div className="remember-forgot">
-              <label>
-                <input type="checkbox" />
-                Remember Me
-              </label>
-              <a href="">Forgot Password</a>
-            </div>
+            {error && <div style={{ color: 'red' }} className="error">{error}</div>}
+            
             <button type="submit" className="btn">
               Login
             </button>
